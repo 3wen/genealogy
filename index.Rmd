@@ -3,7 +3,7 @@ title: "Study of 19th century French demography using collaborative genealogy da
 date: "`r Sys.Date()`"
 output:
   html_document:
-    self_contained: false
+    self_contained: true
     highlight: pygments
     toc: true
     toc_depth: 6
