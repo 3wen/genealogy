@@ -3,6 +3,7 @@ title: "Study of 19th century French demography using collaborative genealogy da
 date: "`r Sys.Date()`"
 output:
   html_document:
+    self_contained: false
     highlight: pygments
     toc: true
     toc_depth: 6
@@ -1907,6 +1908,90 @@ corresp <-
 
 Then it remains to loop on the register and apply the simplification function, as in the previous steps.
 
+
+### Some descriptive statistics on the steps of duplicate detection
+
+To obtain some information on the number of user trees per department, and on the number of individuals in their trees, we propose some descriptive statistics. The Table below provides the number of individuals in the users' trees, in each of the database breakdowns performed by department. We read that for department 01 (Ain), the number of individuals present in the 3916 trees of users who reported at least one ancestor born in the Ain between 1800 and 1804, amounts to 186 160. At the end of the first stage of simplification, this number of individuals falls to 139,168. Thus, the first simplification step identified 46,992 duplicates (see column `nb_duplicates_1`). After the sixth simplification, the number of individuals present in the trees for the data section corresponding to the department Ain amounts to 123,412. Also, the number of duplicates identified during the passage of the six algorithms is 62,748 (see column `nb_doublons_fin`).
+
+
+```{r, size="small", echo=F}
+load("rda_files/nb_users_depts.rda")
+load("rda_files/stat_des_depts_nb_obs_depts.rda")
+
+data <- 
+  nb_users_depts %>% 
+  left_join(nb_obs_depts) %>% 
+  select(dept, nb_users_depts, nb_obs, etape) %>% 
+  spread(etape, nb_obs) %>% 
+  mutate(nb_doublons_fin = `Données brutes` - `Etapes 5 et 6`) %>% 
+  # Quelle est la part de doublons identifiés dès la première étape ?
+  mutate(nb_doublons_1 = `Données brutes` - `Etape 1`) %>% 
+  mutate(pct_etape_1 = nb_doublons_1 / nb_doublons_fin * 100) %>% 
+  mutate(pct_etape_1 = round(pct_etape_1, 2)) %>% 
+  rename("Raw Data" = "Données brutes", "Step 1" = "Etape 1", "Step 2" = "Etape 2", "Step 3" = "Etape 3",
+         "Step 4" = "Etape 4", "Steps 5 and 6" = "Etapes 5 et 6", "no_duplicated_end" = "nb_doublons_fin",
+         "no_duplicated_1" = "nb_doublons_1", "pct_step_1" = "pct_etape_1")
+
+data %>% 
+  DT::datatable()
+```
+
+
+As indicated in the column entitled `pct_etape_1`, the percentage of duplicates identified during the first simplification represents $74.89\%$ of all duplicates identified for the Ain section. It can be noted that for the departments as a whole, this percentage remains high, ranging from $63.99\%$ (06 Alpes-Maritimes) to $86.34\%$ (88 Vosges), the average being $80.37\%$. The Figure below shows the number of individuals not detected as duplicates at each simplification step, for each department (the points of a department are linked).
+
+```{r, echo=FALSE, eval=TRUE, fig.align = "center", fig.width = 7, fig.height = 4.5}
+ggplot(data = nb_obs_depts %>%
+              left_join(
+                data.frame(etape = c("Données brutes", "Etape 1", "Etape 2", "Etape 3", "Etape 4", "Etapes 5 et 6"),
+                           etape_num = seq(0, 5))
+              ),
+            aes(x = etape_num, y = nb_obs/1000, group = dept)) +
+  geom_line(alpha = .2) +
+  geom_point(alpha=.2) +
+  scale_x_continuous(breaks = 0:5, labels = c("Raw Data", "Step 1", "Step 2", "Step 3", "Step 4", "Steps 5 and 6")) +
+  xlab("Step") + ylab("Number of individuals (x 1000)")
+```
+
+
+It may be useful to give some examples of identified duplicates. Let us take a specific example of duplicates detected in department 35, Ille-et-Vilaine. The application of the different algorithms made it possible to point out that among the 368,340 individuals (present in 7,474 distinct trees), 7 of them are likely to mention the same person, namely a certain Jean Esnault born in the commune named Montreuil-sous-Pérouse, on 15 August 1837 (see Table below). It should be noted that in this example, the surname, first name and date of birth are common to all observations. The grouping of these observations into a single one allows us to:
+
+- assign a more precise date of death for observations that do not mention the month or year (values indicate 00 and 00);
+- correct the date of death in observation 2, which is observed less frequently than June 15, 1858 (however, we note that it is possible that the true date of death is the one indicated in observation 2, we have assumed that in the event of different information, the most frequently observed would be used);
+- complete the missing branches for the father in all observations using the value given for the second as a reference.
+
+
+|name     |first_name |loc_Birth                        |dept_B |date_B   |loc_Death                        |dept_D |date_D   |first_name_mother |first_name_father |
+|:-------|:------|:-----------------------------|:------|:--------|:-----------------------------|:------|:--------|:-----------|:-----------|
+|esnault |jean   |Montreuil sous Pérouse, 35500 |F35    |18370815 |NA                            |NA     |18580000 |sainte      |NA          |
+|esnault |jean   |Montreuil-sous-Pérouse, 35194 |F35    |18370815 |Montreuil-sous-Pérouse, 35194 |F35    |18580614 |NA          |pierre      |
+|esnault |jean   |Montreuil-sous-Pérouse, 35500 |F35    |18370815 |NA                            |NA     |18580000 |sainte      |NA          |
+|esnault |jean   |Montreuil-sous-Pérouse, 35194 |F35    |18370815 |Montreuil-sous-Pérouse, 35194 |F35    |18580615 |sainte      |NA          |
+|esnault |jean   |Montreuil-sous-Pérouse,35500  |F35    |18370815 |Montreuil-sous-Pérouse,35500  |F35    |18580615 |sainte      |NA          |
+|esnault |jean   |Montreuil-sous-Pérouse, 35500 |F35    |18370815 |NA                            |NA     |18580000 |sainte      |NA          |
+|esnault |jean   |Montreuil sous Pérouse, 35194 |F35    |18370815 |NA                            |NA     |18580000 |sainte      |NA          |
+
+
+Let us take a second example, that of a certain Clarisse Dupuy-Fromy, born in Saint-Malo on September 20, 1803. In the data for Ille-et-Vilaine, 6 users of Généanet mentioned this person, with more or less details. By combining the trees of these 6 people, it is possible to define a date of birth, a date of death and a link with both parents. It can be noted in the table below that the day of birth is not the subject of an agreement between the different genealogists. Our algorithm designates the final value as a function of the frequency of observation; thus, in the final data, it is assumed that Clarisse Dupuy-Fromy's day of birth is 20 September 1803. The date of death will not be able to benefit from increased accuracy thanks to one of the observations, only the year is mentioned, 1833.
+
+|name         |first_name   |loc_Birth            |dept_B |date_B   |loc_Death |dept_D |date_D   |first_name_mother  |first_name_father |
+|:-----------|:--------|:-----------------|:------|:--------|:------|:------|:--------|:------------|:-----------|
+|dupuy-fromy |clarisse |Saint-Malo, 35400 |F35    |18030927 |NA     |NA     |18330000 |NA           |NA          |
+|dupuy-fromy |clarisse |Saint-Malo, 35400 |F35    |18030927 |NA     |NA     |18330000 |marie        |jacques     |
+|dupuy-fromy |clarisse |St-Malo, 350288   |F35    |18030920 |NA     |NA     |18330000 |marie        |jacques     |
+|fromy       |clarisse |St-Malo           |F35    |18030000 |NA     |NA     |NA       |marie        |jean        |
+|dupuy-fromy |clarisse |St-Malo           |F35    |18030928 |NA     |NA     |18330000 |marie        |jacques     |
+|dupuyfromy  |clarisse |Saint-Malo, 35288 |F35    |18030920 |NA     |NA     |18330000 |marietherese |jacques     |
+|dupuyfromy  |clarisse |Saint-Malo, 35400 |F35    |18030920 |NA     |NA     |18330000 |marie        |jacques     |
+|dupuyfromy  |clarisse |Saint-Malo,35288  |F35    |18030920 |NA     |NA     |18330000 |marie        |jacques     |
+|dupuy-fromy |clarisse |Saint-Malo, 35400 |F35    |18030920 |NA     |NA     |18330000 |marie        |jacques     |
+|fromy       |clarisse |Saint Malo        |F35    |18030920 |NA     |NA     |NA       |marie        |jean        |
+|dupuy-fromy |clarisse |St Malo, 35400    |F35    |18030927 |NA     |NA     |18330000 |NA           |NA          |
+|dupuyfromy  |clarisse |Saint-Malo, 35288 |F35    |18030920 |NA     |NA     |NA       |marie        |jacques     |
+|dupuy-fromy |clarisse |Saint-Malo        |F35    |18031227 |NA     |NA     |18330000 |marie        |jacques     |
+
+
+
+
 ## Pooling of departmental data
 
 In the previous section, we grouped the trees by department. This new section is about pooling the departmental bases in order to create a French base.
@@ -3137,7 +3222,8 @@ spread(sexe, pct_nais)
 ```
 
 ```{r, eval=TRUE,echo=FALSE}
-load("../git/rda_files/p_repres.rda")
+# load("../git/rda_files/p_repres.rda")
+load("../git/rda_files/p_repres_data.rda")
 ```
 
 ```{r, eval=FALSE}
@@ -3150,7 +3236,12 @@ facet_wrap(~sexe)
 ```
 
 ```{r, eval=TRUE,echo=TRUE, fig.align = "center", fig.width = 7, fig.height = 4.5}
-p_repres
+p_repres <- ggplot() +
+  geom_polygon(data = p_repres_data,
+               aes(x = long, y = lat, group = group, fill = pct_nais), size = .4) +
+  coord_quickmap() +
+  scale_fill_gradientn("%", colours = rev(heat.colors(10)), na.value = "grey") +
+  facet_wrap(~sexe)
 ```
 
 
